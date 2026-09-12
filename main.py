@@ -3,9 +3,10 @@ import tkinter as tk
 import math
 
 class Hand:
-    def __init__(self, start, end):
+    def __init__(self, start, end, rotation=0.0):
         self.start = start
         self.end = end
+        self.rotation = rotation
 
 class Number:
     def __init__(self, top_left, bottom_right, value):
@@ -87,6 +88,37 @@ class Clock:
         # Long hand
         self.canvas.create_line(self.long_hand.start, self.long_hand.end)
 
+def move_clock(event, clock):
+    clock.long_hand.rotation += math.pi / 6
+
+    print(f"Old long. Start:{clock.long_hand.start} End:{clock.long_hand.end})")
+
+    A = clock.long_hand.end
+
+
+    new_x = clock.center[0] + (clock.radius) * math.cos(clock.long_hand.rotation - math.pi / 2)
+    new_y = clock.center[1] + (clock.radius) * math.sin(clock.long_hand.rotation - math.pi / 2)
+
+    clock.long_hand = Hand(start=clock.center_dot.center, end=(new_x, new_y), rotation=clock.long_hand.rotation)
+
+    B = clock.long_hand.end
+    center = clock.center
+
+    a = (A[0] - center[0], A[1] - center[1])
+    b = (B[0] - center[0], B[1] - center[1])
+
+    dot = a[0] * b[0] + a[1] * b[1]
+
+    length_a = math.sqrt(a[0]**2 + a[1]**2)
+    length_b = math.sqrt(b[0]**2 + b[1]**2)
+
+    angle = math.degrees(math.acos(dot / (length_a * length_b)))
+    print(f"Angle: {angle}")
+
+    clock.draw_clock()
+
+    print(f"New long. Start:{clock.long_hand.start} End:{clock.long_hand.end})")
+
 def main():
     window_width = 600
     window_height = 600
@@ -100,7 +132,9 @@ def main():
     root.update_idletasks()
 
     clock = Clock(canvas)
-    root.after(50, clock.draw_clock)
+    root.after(100, clock.draw_clock)
+
+    root.bind("<Return>", lambda event: move_clock(event, clock))
 
     root.mainloop()
 
