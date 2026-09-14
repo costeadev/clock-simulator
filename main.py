@@ -3,10 +3,17 @@ import tkinter as tk
 import math
 
 class Hand:
-    def __init__(self, start, end, rotation=0.0):
+    def __init__(self, start, length, rotation=0.0):
         self.start = start
-        self.end = end
         self.rotation = rotation
+        self.length = length
+        self.update_end()
+
+    def update_end(self):
+        self.end = (
+            self.start[0] + self.length * math.cos(self.rotation - math.pi / 2),
+            self.start[1] + self.length * math.sin(self.rotation - math.pi / 2)
+        )
 
 class Number:
     def __init__(self, top_left, bottom_right, value):
@@ -22,9 +29,9 @@ class Dot:
 
         self.top_left = (center[0] - self.radius, center[1] - self.radius)
         self.bottom_right = (center[0] + self.radius, center[1] + self.radius)
-        
+
 class Clock:
-    def __init__(self, canvas):
+    def __init__(self, canvas, digital_clock):
         self.canvas = canvas
 
         width = canvas.winfo_width()
@@ -41,18 +48,26 @@ class Clock:
             self.center[0] + self.radius,
             self.center[1] + self.radius
         )
-        
+
         self.center_dot = Dot(self.center, 2)
 
         self.numbers = []
+
+        self.digital_clock = digital_clock
 
         rotation = 0
         for i in range(12):
             self.numbers.append(self.new_number(i, rotation))
             rotation += math.pi / 6
 
-        self.long_hand = Hand(start=self.center_dot.center, end=(self.center[0], self.center[1] - self.radius))
-        self.short_hand = Hand(start=self.center_dot.center, end=(self.center[0], self.center[1] + self.radius / 2))
+        self.long_hand = Hand(
+            start=self.center_dot.center,
+            length=self.radius * 0.95
+        )
+        self.short_hand = Hand(
+            start=self.center_dot.center,
+            length=self.long_hand.length * 0.65
+        )
 
 
     def new_number(self, i, rotation):
@@ -61,6 +76,19 @@ class Clock:
 
         return Number(new_x, new_y, (i - 1) % 12 + 1)
 
+    def rotate_hand(self, hand, rotation):
+        hand.rotation += rotation
+        hand.update_end()
+
+    def update_time(self):
+        minutes = round(self.long_hand.rotation * (180 / math.pi) / 6) % 60
+        hours = math.floor(self.short_hand.rotation * (180 / math.pi) / 30 % 12)
+        time = f"{hours:02d}:{minutes:02d}"
+        self.digital_clock.config(text=time)
+
+        long_degrees = round(math.degrees(self.long_hand.rotation))
+        short_degrees = round(math.degrees(self.short_hand.rotation), 1)
+        print(f"Long: {long_degrees % 360}° Short: {short_degrees % 360}°")
 
     def draw_clock(self):
         # Face
@@ -83,41 +111,24 @@ class Clock:
             self.canvas.create_text(number.top_left, number.bottom_right, text=number.value)
 
         # Short hand
-        self.canvas.create_line(self.short_hand.start, self.short_hand.end)
-        
+        self.canvas.create_line(
+            self.short_hand.start,
+            self.short_hand.end,
+            width=2
+        )
+
         # Long hand
-        self.canvas.create_line(self.long_hand.start, self.long_hand.end)
+        self.canvas.create_line(
+            self.long_hand.start,
+            self.long_hand.end,
+            width=1
+        )
 
 def move_clock(event, clock):
-    clock.long_hand.rotation += math.pi / 6
-
-    print(f"Old long. Start:{clock.long_hand.start} End:{clock.long_hand.end})")
-
-    A = clock.long_hand.end
-
-
-    new_x = clock.center[0] + (clock.radius) * math.cos(clock.long_hand.rotation - math.pi / 2)
-    new_y = clock.center[1] + (clock.radius) * math.sin(clock.long_hand.rotation - math.pi / 2)
-
-    clock.long_hand = Hand(start=clock.center_dot.center, end=(new_x, new_y), rotation=clock.long_hand.rotation)
-
-    B = clock.long_hand.end
-    center = clock.center
-
-    a = (A[0] - center[0], A[1] - center[1])
-    b = (B[0] - center[0], B[1] - center[1])
-
-    dot = a[0] * b[0] + a[1] * b[1]
-
-    length_a = math.sqrt(a[0]**2 + a[1]**2)
-    length_b = math.sqrt(b[0]**2 + b[1]**2)
-
-    angle = math.degrees(math.acos(dot / (length_a * length_b)))
-    print(f"Angle: {angle}")
-
+    clock.rotate_hand(clock.long_hand, math.pi / 30)
+    clock.rotate_hand(clock.short_hand, math.pi / 360)
     clock.draw_clock()
-
-    print(f"New long. Start:{clock.long_hand.start} End:{clock.long_hand.end})")
+    clock.update_time()
 
 def main():
     window_width = 600
@@ -129,10 +140,18 @@ def main():
     canvas = tk.Canvas(root, bd=0, highlightthickness=0, width=window_width, height=window_height)
     canvas.pack()
 
+    digital_clock = tk.Label(
+        root,
+        text="00:00",
+        font=("Arial", 24)
+    )
+
     root.update_idletasks()
 
-    clock = Clock(canvas)
-    root.after(100, clock.draw_clock)
+    clock = Clock(canvas, digital_clock)
+    root.after(0, clock.draw_clock)
+
+    digital_clock.place(x=window_width / 2 - digital_clock.winfo_reqwidth() / 2, y=clock.radius / 2 - digital_clock.winfo_reqheight())
 
     root.bind("<Return>", lambda event: move_clock(event, clock))
 
