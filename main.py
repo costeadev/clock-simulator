@@ -3,10 +3,11 @@ import tkinter as tk
 import math
 
 class Hand:
-    def __init__(self, start, length, rotation=0.0):
+    def __init__(self, start, length, rotation=0.0, fill="black"):
         self.start = start
         self.rotation = rotation
         self.length = length
+        self.fill = fill
         self.update_end()
 
     def update_end(self):
@@ -60,15 +61,21 @@ class Clock:
             self.numbers.append(self.new_number(i, rotation))
             rotation += math.pi / 6
 
-        self.long_hand = Hand(
+        self.hour_hand = Hand(
             start=self.center_dot.center,
-            length=self.radius * 0.95
+            length=self.radius * 0.65
         )
-        self.short_hand = Hand(
+        self.minute_hand = Hand(
             start=self.center_dot.center,
-            length=self.long_hand.length * 0.65
+            length=self.radius * 0.85
+        )
+        self.second_hand = Hand(
+            start=self.center_dot.center,
+            length=self.radius * 0.95,
+            fill="red"
         )
 
+        self.loop = False
 
     def new_number(self, i, rotation):
         new_x = self.center[0] + (self.radius - 10) * math.cos(rotation - math.pi / 2)
@@ -81,14 +88,19 @@ class Clock:
         hand.update_end()
 
     def update_time(self):
-        minutes = round(self.long_hand.rotation * (180 / math.pi) / 6) % 60
-        hours = math.floor(self.short_hand.rotation * (180 / math.pi) / 30 % 12)
-        time = f"{hours:02d}:{minutes:02d}"
+
+        hour_degrees = round(math.degrees(self.hour_hand.rotation), 1)
+        minutes_degrees = round(math.degrees(self.minute_hand.rotation), 1)
+        second_degrees = round(math.degrees(self.second_hand.rotation), 1)
+
+        hours = int(hour_degrees / 30) % 12
+        minutes = int(minutes_degrees/ 6) % 60
+        seconds = int(second_degrees / 6) % 60
+
+        time = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
         self.digital_clock.config(text=time)
 
-        long_degrees = round(math.degrees(self.long_hand.rotation))
-        short_degrees = round(math.degrees(self.short_hand.rotation), 1)
-        print(f"Long: {long_degrees % 360}° Short: {short_degrees % 360}°")
+        print(f"Hour: {hour_degrees}° Minute: {minutes_degrees}° Second:{second_degrees}°")
 
     def draw_clock(self):
         # Face
@@ -110,25 +122,48 @@ class Clock:
         for number in self.numbers:
             self.canvas.create_text(number.top_left, number.bottom_right, text=number.value)
 
-        # Short hand
+        # Hour hand
         self.canvas.create_line(
-            self.short_hand.start,
-            self.short_hand.end,
+            self.hour_hand.start,
+            self.hour_hand.end,
+            width=4
+        )
+
+        # Minute hand
+        self.canvas.create_line(
+            self.minute_hand.start,
+            self.minute_hand.end,
+            width=3
+        )
+
+        # Second hand
+        self.canvas.create_line(
+            self.second_hand.start,
+            self.second_hand.end,
+            fill=self.second_hand.fill,
             width=2
         )
 
-        # Long hand
-        self.canvas.create_line(
-            self.long_hand.start,
-            self.long_hand.end,
-            width=1
-        )
+def move_clock(clock, seconds):
+    clock.rotate_hand(clock.hour_hand, seconds * math.pi / 21600)
+    clock.rotate_hand(clock.minute_hand, seconds * math.pi / 1800)
+    clock.rotate_hand(clock.second_hand, seconds * math.pi / 30)
 
-def move_clock(event, clock):
-    clock.rotate_hand(clock.long_hand, math.pi / 30)
-    clock.rotate_hand(clock.short_hand, math.pi / 360)
+    clock.canvas.delete("all")
     clock.draw_clock()
     clock.update_time()
+
+    if clock.loop:
+        clock.after_id = clock.canvas.after(
+            1000,
+            lambda: move_clock(clock, seconds)
+        )
+
+def switch_loop(clock):
+    clock.loop = not clock.loop
+
+    if clock.loop:
+        move_clock(clock, 1)
 
 def main():
     window_width = 600
@@ -142,7 +177,7 @@ def main():
 
     digital_clock = tk.Label(
         root,
-        text="00:00",
+        text="00:00:00",
         font=("Arial", 24)
     )
 
@@ -153,7 +188,9 @@ def main():
 
     digital_clock.place(x=window_width / 2 - digital_clock.winfo_reqwidth() / 2, y=clock.radius / 2 - digital_clock.winfo_reqheight())
 
-    root.bind("<Return>", lambda event: move_clock(event, clock))
+    loop = False
+    root.bind("<Return>", lambda event: move_clock(clock, 1))
+    root.bind("<BackSpace>", lambda event: switch_loop(clock))
 
     root.mainloop()
 
