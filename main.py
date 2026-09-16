@@ -1,4 +1,5 @@
 import numbers
+from datetime import datetime
 import tkinter as tk
 import math
 
@@ -84,11 +85,32 @@ class Clock:
         return Number(new_x, new_y, (i - 1) % 12 + 1)
 
     def rotate_hand(self, hand, rotation):
-        hand.rotation += rotation
+        hand.rotation += (hand.rotation + rotation) % (2 * math.pi)
         hand.update_end()
 
-    def update_time(self):
+    def time_to_clock(self):
+        now =  datetime.now()
 
+        hours = int(now.hour)
+        minutes = int(now.minute)
+        seconds = int(now.second)
+
+        second_degrees = seconds * 6
+        minutes_degrees = minutes * 6 + 0.1 * seconds
+        hour_degrees = hours * 30 + 1/3 * minutes + 1/180 * seconds
+
+        self.second_hand.rotation = math.radians(second_degrees)
+        self.minute_hand.rotation = math.radians(minutes_degrees)
+        self.hour_hand.rotation = math.radians(hour_degrees)
+
+        self.second_hand.update_end()
+        self.minute_hand.update_end()
+        self.hour_hand.update_end()
+
+        self.update_time()
+        self.draw_clock()
+
+    def update_time(self):
         hour_degrees = round(math.degrees(self.hour_hand.rotation), 1)
         minutes_degrees = round(math.degrees(self.minute_hand.rotation), 1)
         second_degrees = round(math.degrees(self.second_hand.rotation), 1)
@@ -191,6 +213,7 @@ def main():
     loop = False
     root.bind("<Return>", lambda event: move_clock(clock, 1))
     root.bind("<BackSpace>", lambda event: switch_loop(clock))
+    root.bind("<Control_L>", lambda event: clock.time_to_clock)
 
     root.mainloop()
 
