@@ -15,7 +15,7 @@ class Hand:
     def update_end(self):
         self.end = (
             self.start[0] + self.length * math.cos(self.rotation - math.pi / 2),
-            self.start[1] + self.length * math.sin(self.rotation - math.pi / 2)
+            self.start[1] + self.length * math.sin(self.rotation - math.pi / 2),
         )
 
 
@@ -46,14 +46,8 @@ class Clock:
         self.center = (width / 2, height / 2)
         self.radius = min(width, height) / 4
 
-        self.top_left = (
-            self.center[0] - self.radius,
-            self.center[1] - self.radius
-        )
-        self.bottom_right = (
-            self.center[0] + self.radius,
-            self.center[1] + self.radius
-        )
+        self.top_left = (self.center[0] - self.radius, self.center[1] - self.radius)
+        self.bottom_right = (self.center[0] + self.radius, self.center[1] + self.radius)
 
         self.center_dot = Dot(self.center, 2)
 
@@ -66,18 +60,10 @@ class Clock:
             self.numbers.append(self.new_number(i, rotation))
             rotation += math.pi / 6
 
-        self.hour_hand = Hand(
-            start=self.center_dot.center,
-            length=self.radius * 0.65
-        )
-        self.minute_hand = Hand(
-            start=self.center_dot.center,
-            length=self.radius * 0.85
-        )
+        self.hour_hand = Hand(start=self.center_dot.center, length=self.radius * 0.65)
+        self.minute_hand = Hand(start=self.center_dot.center, length=self.radius * 0.85)
         self.second_hand = Hand(
-            start=self.center_dot.center,
-            length=self.radius * 0.95,
-            fill="red"
+            start=self.center_dot.center, length=self.radius * 0.95, fill="red"
         )
 
         self.loop = False
@@ -113,7 +99,15 @@ class Clock:
         self.hour_hand.update_end()
 
         self.update_time()
-        self.draw_clock()
+        self.render()
+
+    def print_hand_degrees(self):
+        hour_degrees = round(math.degrees(self.hour_hand.rotation), 1)
+        minutes_degrees = round(math.degrees(self.minute_hand.rotation), 1)
+        second_degrees = round(math.degrees(self.second_hand.rotation), 1)
+        print(
+            f"Hour: {hour_degrees}° Minute: {minutes_degrees}° Second:{second_degrees}°"
+        )
 
     def update_time(self):
         hour_degrees = round(math.degrees(self.hour_hand.rotation), 1)
@@ -127,90 +121,81 @@ class Clock:
         time = f"{hours:02d}:{minutes:02d}:{seconds:02d}"
         self.digital_clock.config(text=time)
 
-        print(f"Hour: {hour_degrees}° Minute: {minutes_degrees}° Second:{second_degrees}°")
-
-    def draw_clock(self):
+    def render(self):
         # Face
         self.canvas.create_oval(
-            self.top_left,
-            self.bottom_right,
-            fill="white",
-            outline='black'
+            self.top_left, self.bottom_right, fill="white", outline="black"
         )
 
         # Center
         self.canvas.create_oval(
             self.center_dot.top_left,
             self.center_dot.bottom_right,
-            fill=self.center_dot.color
+            fill=self.center_dot.color,
         )
 
         # Numbers
         for number in self.numbers:
-            self.canvas.create_text(number.top_left, number.bottom_right, text=number.value)
+            self.canvas.create_text(
+                number.top_left, number.bottom_right, text=number.value
+            )
 
         # Hour hand
-        self.canvas.create_line(
-            self.hour_hand.start,
-            self.hour_hand.end,
-            width=4
+        self.hour_hand_id = self.canvas.create_line(
+            self.hour_hand.start, self.hour_hand.end, width=4, tags="hand"
         )
 
         # Minute hand
-        self.canvas.create_line(
-            self.minute_hand.start,
-            self.minute_hand.end,
-            width=3
+        self.minute_hand_id = self.canvas.create_line(
+            self.minute_hand.start, self.minute_hand.end, width=3, tags="hand"
         )
 
         # Second hand
-        self.canvas.create_line(
+        self.second_hand_id = self.canvas.create_line(
             self.second_hand.start,
             self.second_hand.end,
             fill=self.second_hand.fill,
-            width=2
+            width=2,
+            tags="hand",
         )
 
 
-def move_clock(clock, seconds, schedule=True):
-    clock.rotate_hand(clock.hour_hand, seconds * math.pi / 21600)
-    clock.rotate_hand(clock.minute_hand, seconds * math.pi / 1800)
-    clock.rotate_hand(clock.second_hand, seconds * math.pi / 30)
+    def move(self, seconds, schedule=True):
+        self.rotate_hand(self.hour_hand, seconds * math.pi / 21600)
+        self.rotate_hand(self.minute_hand, seconds * math.pi / 1800)
+        self.rotate_hand(self.second_hand, seconds * math.pi / 30)
 
-    clock.canvas.delete("all")
-    clock.draw_clock()
-    clock.update_time()
+        self.canvas.delete("all")
+        self.render()
+        self.update_time()
 
-    if schedule and clock.loop:
-        clock.after_id = clock.canvas.after(
-            1000,
-            lambda: move_clock(clock, seconds)
-        )
+        if schedule and self.loop:
+            self.after_id = self.canvas.after(1000, lambda: self.move(seconds))
 
 
-def switch_loop(clock):
-    if clock.loop:
-        clock.loop = False
-        clock.canvas.after_cancel(clock.after_id)
-        clock.after_id = None
-    else:
-        clock.loop = True
-        move_clock(clock, 1)
+    def switch_loop(self):
+        if self.loop:
+            self.loop = False
+            self.canvas.after_cancel(self.after_id)
+            self.after_id = None
+        else:
+            self.loop = True
+            self.move(1)
 
 
-def set_loop(clock, state):
-    if clock.loop:
-        clock.loop = state
-        clock.canvas.after_cancel(clock.after_id)
-        clock.after_id = None
-    else:
-        clock.loop = state
-        move_clock(clock, 1)
+    def set_loop(self, state):
+        if self.loop:
+            self.loop = state
+            self.canvas.after_cancel(self.after_id)
+            self.after_id = None
+        else:
+            self.loop = state
+            self.move(self, 1)
 
 
 def main():
-    window_width = 600
-    window_height = 600
+    window_width = 960
+    window_height = 1080
 
     canvas_height = window_height * 2 / 3
     controls_frame_height = window_height / 3
@@ -227,24 +212,24 @@ def main():
     )
     canvas.pack()
 
-    digital_clock = tk.Label(
-        canvas,
-        text="00:00:00",
-        font=("Arial", 24)
-    )
+    digital_clock = tk.Label(canvas, text="00:00:00", font=("Arial", 24))
 
     root.update_idletasks()
 
     clock = Clock(canvas, digital_clock)
 
     clock.time_to_clock()
-    switch_loop(clock)
+    clock.switch_loop()
 
     # ----------
     # Controls
     # ----------
 
-    controls_frame = tk.Frame(root, width=window_width, height=controls_frame_height, )
+    controls_frame = tk.Frame(
+        root,
+        width=window_width,
+        height=controls_frame_height,
+    )
     controls_frame.pack_propagate(False)
     controls_frame.pack()
 
@@ -252,76 +237,87 @@ def main():
     time_controls.pack()
 
     tk.Button(
-        time_controls,
-        text="- Hour",
-        command=lambda: move_clock(clock, -3600, False)
+        time_controls, text="- Hour", command=lambda: clock.move(-3600, False)
     ).grid(row=0, column=0)
 
     tk.Button(
-        time_controls,
-        text="+ Hour",
-        command=lambda: move_clock(clock, 3600, False)
+        time_controls, text="+ Hour", command=lambda: clock.move(seconds=3600, schedule=False)
     ).grid(row=0, column=1)
 
     tk.Button(
-        time_controls,
-        text="- Minute",
-        command=lambda: move_clock(clock, -60, False)
+        time_controls, text="- Minute", command=lambda: clock.move(seconds=-60, schedule=False)
     ).grid(row=1, column=0)
 
     tk.Button(
-        time_controls,
-        text="+ Minute",
-        command=lambda: move_clock(clock, 3600, False)
+        time_controls, text="+ Minute", command=lambda: clock.move(seconds=60, schedule=False)
     ).grid(row=1, column=1)
 
     tk.Button(
-        time_controls,
-        text="- Second",
-        command=lambda: move_clock(clock, -1, False)
+        time_controls, text="- Second", command=lambda: clock.move(seconds=-1, schedule=False)
     ).grid(row=2, column=0)
 
     tk.Button(
-        time_controls,
-        text="+ Second",
-        command=lambda: move_clock(clock, 1, False)
+        time_controls, text="+ Second", command=lambda: clock.move(seconds=1, schedule=False)
     ).grid(row=2, column=1)
 
     mode_controls = tk.Frame(controls_frame)
     mode_controls.pack(pady=10)
 
-    (tk.Button(
-        mode_controls,
-        text="Start",
-        command=lambda: set_loop(clock, True))
-     .grid(row=0, column=0))
+    (
+        tk.Button(
+            mode_controls, text="Start", command=lambda: clock.set_loop(True)
+        ).grid(row=0, column=0)
+    )
 
-    (tk.Button(
-        mode_controls,
-        text="Pause",
-        command=lambda: set_loop(clock, False))
-     .grid(row=0, column=1))
+    (
+        tk.Button(
+            mode_controls, text="Pause", command=lambda: clock.set_loop(False)
+        ).grid(row=0, column=1)
+    )
 
-    (tk.Button(
-        mode_controls,
-        text="Sync",
-        command=clock.time_to_clock)
-     .grid(row=0, column=2))
+    (
+        tk.Button(mode_controls, text="Sync", command=clock.time_to_clock).grid(
+            row=0, column=2
+        )
+    )
 
-    digital_clock.place(x=window_width / 2 - digital_clock.winfo_reqwidth() / 2,
-                        y=clock.radius / 2 - digital_clock.winfo_reqheight())
+    digital_clock.place(
+        x=window_width / 2 - digital_clock.winfo_reqwidth() / 2,
+        y=clock.radius / 2 - digital_clock.winfo_reqheight(),
+    )
 
-    # back_btn = tk.Button(root, text="←", command=lambda: move_clock(clock, -1, False))
-    # back_btn.place(x=0, y=0)
-    # forward_btn = tk.Button(root, text="→", command=lambda: move_clock(clock, 1, False))
-    # forward_btn.place(x=50, y=0)
+    def select_hand(event):
+        canvas.itemconfig("current", fill="blue")
 
-    # btn.pack()
+    def deselect_hand(event):
+        canvas.itemconfig("current", fill="black")
 
-    root.bind("<Left>", lambda event: move_clock(clock, -1, False))
-    root.bind("<Right>", lambda event: move_clock(clock, 1, False))
-    root.bind("<BackSpace>", lambda event: switch_loop(clock))
-    root.bind("<Control_L>", lambda event: clock.time_to_clock())
+    mouse_held = False    
+
+    def pressed(event):
+        # print("ping")
+        global mouse_held
+        mouse_held = True
+
+    def released(event):
+        # print("pong")
+        global mouse_held
+        mouse_held = False
+
+    def moved(event):
+        global mouse_held
+        # print("moving")
+        if mouse_held:
+            print("Dragging at", event.x, event.y)
+
+    root.bind("<Return>", lambda event: clock.move(3500, False))  
+
+    canvas.bind("<Button-1>", pressed)
+    canvas.bind("<ButtonRelease-1>", released)
+    canvas.bind("<Motion>", moved)
+    
+    canvas.tag_bind("hand", "<Enter>", select_hand)
+    canvas.tag_bind("hand", "<Leave>", deselect_hand)
 
     root.mainloop()
 
