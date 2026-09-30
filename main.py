@@ -295,25 +295,34 @@ def main():
     mouse_held = False    
 
     def pressed(event):
-        # print("ping")
         global mouse_held
         mouse_held = True
+        # canvas.itemconfig("current", fill="blue")
 
     def released(event):
-        # print("pong")
         global mouse_held
         mouse_held = False
+        # canvas.itemconfig("current", fill="black")
 
     def moved(event):
+        # print("pong")
         global mouse_held
-        # print("moving")
         if mouse_held:
             print("Dragging at", event.x, event.y)
+            dx = event.x - clock.center[0]
+            dy = event.y - clock.center[1]
+
+            angle = math.atan2(dy, dx) + math.pi / 2
+        
+            clock.minute_hand.rotation = angle
+            clock.minute_hand.update_end()
+            clock.render()
+
 
     root.bind("<Return>", lambda event: clock.move(3500, False))  
 
-    canvas.bind("<Button-1>", pressed)
-    canvas.bind("<ButtonRelease-1>", released)
+    canvas.tag_bind("hand","<Button-1>", pressed)
+    canvas.tag_bind("hand","<ButtonRelease-1>", released)
     canvas.bind("<Motion>", moved)
     
     canvas.tag_bind("hand", "<Enter>", select_hand)
